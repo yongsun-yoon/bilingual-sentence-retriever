@@ -1,6 +1,6 @@
 device: cuda:0
-data_dir: /content/drive/MyDrive/project/bilingual-sentence-embedder/data/prep
-ckpt_dir: /content/drive/MyDrive/project/bilingual-sentence-embedder/ckpt
+data_dir: /content/drive/MyDrive/project/multilingual-sentence-embedder/data/prep
+ckpt_dir: /content/drive/MyDrive/project/multilingual-sentence-embedder/ckpt
 
 teacher_name: sentence-transformers/all-mpnet-base-v2
 student_name: nreimers/mMiniLMv2-L6-H384-distilled-from-XLMR-Large
