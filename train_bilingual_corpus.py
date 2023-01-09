@@ -59,7 +59,7 @@ def main(cfg: DictConfig):
     optimizer = torch.optim.AdamW(student_model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     scheduler = get_scheduler('cosine', optimizer, num_warmup_steps=cfg.num_warmup_steps, num_training_steps=cfg.num_training_steps)
 
-    wandb.init(project='sentence-retriever', config=cfg)
+    wandb.init(project='multilingual-sentence-embedder', config=cfg)
     pbar = tqdm(range(1, cfg.num_training_steps+1))
     for st in pbar:    
         ko_sents, en_sents = get_batch(data, cfg.batch_size)
