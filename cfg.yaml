@@ -6,7 +6,7 @@ teacher_name: sentence-transformers/all-mpnet-base-v2
 student_name: nreimers/mMiniLMv2-L6-H384-distilled-from-XLMR-Large
 
 max_length: 256
-batch_size: 32
+batch_size: 16
 
 weight_decay: 1e-4
 lr: 1e-4
