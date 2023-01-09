@@ -1,0 +1,14 @@
+device: cuda:0
+data_dir: /content/drive/MyDrive/project/bilingual-sentence-retriever/data/prep
+ckpt_dir: /content/drive/MyDrive/project/bilingual-sentence-retriever/ckpt
+
+teacher_name: sentence-transformers/all-mpnet-base-v2
+student_name: nreimers/mMiniLMv2-L6-H384-distilled-from-XLMR-Large
+
+max_length: 256
+batch_size: 32
+
+weight_decay: 1e-4
+lr: 1e-4
+num_warmup_steps: 1000
+num_training_steps: 50000
