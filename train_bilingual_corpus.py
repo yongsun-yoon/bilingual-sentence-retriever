@@ -9,8 +9,8 @@ import torch.nn.functional as F
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModel, get_scheduler
 
-from sentence_retriever.configuration_sentence_retriever import SentenceRetrieverConfig
-from sentence_retriever.modeling_sentence_retriever import SentenceRetrieverModel
+from sentence_embedder.configuration_sentence_embedder import SentenceEmbedderConfig
+from sentence_embedder.modeling_sentence_embedder import SentenceEmbedderModel
 
 
 def get_batch(data, batch_size):
