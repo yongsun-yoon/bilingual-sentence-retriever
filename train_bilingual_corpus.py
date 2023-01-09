@@ -36,21 +36,19 @@ def main(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
     data = load_dataset('csv', data_dir=cfg.data_dir)
     data = data['train']
-
     ko_sents, en_sents = get_batch(data, cfg.batch_size)
-    print(ko_sents)
 
     teacher_tokenizer = AutoTokenizer.from_pretrained(cfg.teacher_name)
     teacher_model = AutoModel.from_pretrained(cfg.teacher_name)
     _ = teacher_model.eval().requires_grad_(False).to(cfg.device)
 
     student_tokenizer = AutoTokenizer.from_pretrained(cfg.student_name)
-    student_config = SentenceRetrieverConfig(
+    student_config = SentenceEmbedderConfig(
         base_model_name = cfg.student_name,
         output_size = teacher_model.config.hidden_size,
         init_backbone = True
     )
-    student_model = SentenceRetrieverModel(student_config)
+    student_model = SentenceEmbedderModel(student_config)
     _ = student_model.train().to(cfg.device)
 
     student_tokenizer.save_pretrained(cfg.ckpt_dir)
