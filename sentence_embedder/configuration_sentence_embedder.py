@@ -1,7 +1,7 @@
 from transformers import PretrainedConfig
 
-class SentenceRetrieverConfig(PretrainedConfig):
-    model_type = 'sentence_retriever'
+class SentenceEmbedderConfig(PretrainedConfig):
+    model_type = 'sentence_embedder'
 
     def __init__(
         self, 

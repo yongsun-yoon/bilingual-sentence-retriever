@@ -1,10 +1,10 @@
 import torch.nn as nn
 from transformers import PreTrainedModel, AutoConfig, AutoModel
 
-from .configuration_sentence_retriever import SentenceRetrieverConfig
+from .configuration_sentence_embedder import SentenceEmbedderConfig
 
-class SentenceRetrieverModel(PreTrainedModel):
-    config_class = SentenceRetrieverConfig
+class SentenceEmbedderModel(PreTrainedModel):
+    config_class = SentenceEmbedderConfig
 
     def __init__(self, config):
         super().__init__(config)
