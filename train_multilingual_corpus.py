@@ -1,5 +1,6 @@
 import hydra
 import wandb
+import ctranslate2
 import numpy as np
 from tqdm.auto import tqdm
 from omegaconf import OmegaConf, DictConfig
@@ -13,17 +14,46 @@ from sentence_embedder import SentenceEmbedderConfig, SentenceEmbedderModel
 
 
 def get_batch(data, batch_size):
-    ko_sents, en_sents, batch_idxs = [], [], []
-    while len(ko_sents) < batch_size:
+    en_sents, batch_idxs = [], [], []
+    while len(en_sents) < batch_size:
         idx = np.random.randint(0, len(data))
         if idx in batch_idxs: continue
 
         item = data[idx]
-        ko_sents.append(item['ko'])
         en_sents.append(item['en'])
         batch_idxs.append(idx)
     
-    return ko_sents, en_sents
+    return en_sents
+
+
+class Translator:
+    def __init__(self, device):
+        if 'cuda' in device:
+            device, device_index = device.split(':')
+            device_index = int(device_index)
+        else:
+            device = 'cpu'
+            device_index = 0
+
+        self.translator = ctranslate2.Translator("nllb-200-distilled-600M", device=device, device_index=device_index)
+        self.tokenizer = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M")
+        self.languages = list(self.tokenizer.lang_code_to_id.keys()) # NLLB가 제공하는 모든 언어를 학습에 사용할 경우
+        
+    def translate(self, sentences, tgt_lang):
+        source = [self.tokenizer.tokenize(s, add_special_tokens=True) for s in sentences]
+        target_prefix = [[tgt_lang]] * len(source)
+
+        results = self.translator.translate_batch(source, target_prefix=target_prefix)
+        results = [self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(res.hypotheses[0][1:])) for res in results]
+        return results
+    
+    def translate_random_lang(self, sentences):
+        source = [self.tokenizer.tokenize(s, add_special_tokens=True) for s in sentences]
+        target_prefix = [[np.random.choice(self.languages)] for _ in range(len(source))]
+        results = self.translator.translate_batch(source, target_prefix=target_prefix)
+        results = [self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(res.hypotheses[0][1:])) for res in results]
+        return results
+
 
 def mean_pooling(token_embeddings, attention_mask):
     input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
@@ -35,7 +65,8 @@ def main(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
     data = load_dataset('csv', data_dir=cfg.data_dir)
     data = data['train']
-    ko_sents, en_sents = get_batch(data, cfg.batch_size)
+    en_sents = get_batch(data, cfg.batch_size)
+    translator = Translator(cfg.device)
 
     teacher_tokenizer = AutoTokenizer.from_pretrained(cfg.teacher_name)
     teacher_model = AutoModel.from_pretrained(cfg.teacher_name)
@@ -59,19 +90,21 @@ def main(cfg: DictConfig):
     wandb.init(project='multilingual-sentence-embedder', config=cfg)
     pbar = tqdm(range(1, cfg.num_training_steps+1))
     for st in pbar:    
-        ko_sents, en_sents = get_batch(data, cfg.batch_size)
+        en_sents = get_batch(data, cfg.batch_size)
+        tr_sents = translator.translate_random_lang(en_sents)
+        
 
         teacher_en_inputs = teacher_tokenizer(en_sents, max_length=cfg.max_length, padding=True, truncation=True, return_tensors='pt').to(cfg.device)
         student_en_inputs = student_tokenizer(en_sents, max_length=cfg.max_length, padding=True, truncation=True, return_tensors='pt').to(cfg.device)
-        student_ko_inputs = student_tokenizer(ko_sents, max_length=cfg.max_length, padding=True, truncation=True, return_tensors='pt').to(cfg.device)
+        student_tr_inputs = student_tokenizer(tr_sents, max_length=cfg.max_length, padding=True, truncation=True, return_tensors='pt').to(cfg.device)
 
         teacher_en_outputs = teacher_model(**teacher_en_inputs).last_hidden_state
         teacher_en_embeds = mean_pooling(teacher_en_outputs, teacher_en_inputs.attention_mask)
 
         student_en_outputs = student_model(**student_en_inputs).last_hidden_state
         student_en_embeds = mean_pooling(student_en_outputs, student_en_inputs.attention_mask)
-        student_ko_outputs = student_model(**student_ko_inputs).last_hidden_state
-        student_ko_embeds = mean_pooling(student_ko_outputs, student_ko_inputs.attention_mask)
+        student_tr_outputs = student_model(**student_tr_inputs).last_hidden_state
+        student_tr_embeds = mean_pooling(student_tr_outputs, student_tr_inputs.attention_mask)
 
         # word-level loss
         num_sents = len(en_sents)
@@ -97,15 +130,15 @@ def main(cfg: DictConfig):
             word_loss = 0.
         
         en_loss = F.mse_loss(teacher_en_embeds, student_en_embeds) 
-        ko_loss = F.mse_loss(teacher_en_embeds, student_ko_embeds)
-        loss = en_loss * 10. + ko_loss * 10. + word_loss
+        tr_loss = F.mse_loss(teacher_en_embeds, student_tr_embeds)
+        loss = en_loss * 10. + tr_loss * 10. + word_loss
         
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         scheduler.step()
 
-        log = {'loss': loss.item(), 'en': en_loss.item(), 'ko': ko_loss.item(), 'word': word_loss.item()}
+        log = {'loss': loss.item(), 'en': en_loss.item(), 'tr': tr_loss.item(), 'word': word_loss.item()}
         pbar.set_postfix(log)
         wandb.log(log)
 
