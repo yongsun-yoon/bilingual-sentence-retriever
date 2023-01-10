@@ -14,7 +14,7 @@ from sentence_embedder import SentenceEmbedderConfig, SentenceEmbedderModel
 
 
 def get_batch(data, batch_size):
-    en_sents, batch_idxs = [], [], []
+    en_sents, batch_idxs = [], []
     while len(en_sents) < batch_size:
         idx = np.random.randint(0, len(data))
         if idx in batch_idxs: continue
