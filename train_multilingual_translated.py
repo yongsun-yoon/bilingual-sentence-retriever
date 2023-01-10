@@ -89,11 +89,15 @@ def main(cfg: DictConfig):
 
     wandb.init(project='multilingual-sentence-embedder', config=cfg)
     pbar = tqdm(range(1, cfg.num_training_steps+1))
-    for st in pbar:    
-        en_sents = get_batch(data, cfg.batch_size)
-        tr_sents = translator.translate_random_lang(en_sents)
+    for st in pbar:
+        while True:
+            try:
+                en_sents = get_batch(data, cfg.batch_size)
+                tr_sents = translator.translate_random_lang(en_sents)
+                break
+            except:
+                continue
         
-
         teacher_en_inputs = teacher_tokenizer(en_sents, max_length=cfg.max_length, padding=True, truncation=True, return_tensors='pt').to(cfg.device)
         student_en_inputs = student_tokenizer(en_sents, max_length=cfg.max_length, padding=True, truncation=True, return_tensors='pt').to(cfg.device)
         student_tr_inputs = student_tokenizer(tr_sents, max_length=cfg.max_length, padding=True, truncation=True, return_tensors='pt').to(cfg.device)
